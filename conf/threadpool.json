@@ -1,0 +1,8 @@
+{
+    "FIXED_THREAD": false,
+    "timeout": 3000,
+    "priority_level": 1,
+    "max_task": 10,
+    "max_threads": 7,
+    "min_threads": 4
+}

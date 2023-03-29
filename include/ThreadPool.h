@@ -3,7 +3,7 @@
  * @github: https://github.com/yuyuyuj1e
  * @csdn: https://blog.csdn.net/yuyuyuj1e
  * @date: 2022-11-10 18:17:23
- * @last_edit_time: 2023-03-29 19:42:01
+ * @last_edit_time: 2023-03-29 21:32:31
  * @file_path: /Thread-Pool/include/ThreadPool.h
  * @description: 线程池模块头文件 
  */
@@ -37,30 +37,42 @@ enum class ThreadPoolWorkMode : char {
 };
 
 
+struct ThreadPoolConfig {
+	/* 线程池相关设置 */
+	ThreadPoolWorkMode m_mode;  // 线程池的工作模式
+	std::chrono::milliseconds m_timeout;  // 超时时长
+	size_t m_priority_level;  // 任务优先级等级
+
+	/* 任务队列 */
+	size_t m_max_task;  // 最大任务量
+
+	/* 工作线程 */
+	size_t m_max_threshold;  // 线程上限
+	size_t m_min_threshold;  // 线程下限
+};
+
+
 /** 
  * @description: 线程池类
  * @description: 线程池类负责维护线程池队列（创建/删除子线程），维护任务队列（任务的提交）
  */
 class ThreadPool {
 private:
+	/* 配置文件 */
+	ThreadPoolConfig* m_config = nullptr;
+
 	/* 线程池相关设置 */
 	int m_thread_id = 1;  // 线程 id，用于传递给工作线程使用
 	bool m_start = false; // 线程池启动标志
 	std::mutex m_mutex; // 互斥锁
-	std::chrono::milliseconds m_timeout = std::chrono::milliseconds(3000);  // 任务超时时长
-	size_t m_priority_level = 1;  // 任务优先级等级
-	ThreadPoolWorkMode m_mode;  // 线程池的工作模式
 
 	/* 任务队列 */
 	SafeQueue<std::function<void()>> m_queue; // 函数任务队列
 	std::condition_variable m_queue_not_full;  // 任务已满
 	std::condition_variable m_queue_not_empty; // 任务为空
-	size_t m_max_task;  // 最大任务量
 
 	/* 工作线程 */
 	std::unordered_map<int, std::thread> m_threads;  // 线程队列
-	size_t m_max_threshold;  // 线程上限
-	size_t m_min_threshold;  // 线程下限
 	std::atomic_int m_thread_amount;  // 线程数量
 
 
@@ -78,12 +90,12 @@ private:
 
 private:
 void initThreadPool();  // 初始化线程池
-
+bool parseConfig(std::string);  // 解析线程池配置文件
 
 public:
 	/* 构造函数与析构函数 */
 	ThreadPool();  // 默认构造函数
-	explicit ThreadPool(const size_t, ThreadPoolWorkMode work_mode = ThreadPoolWorkMode::FIXED_THREAD);  // 含参构造函数，且关闭隐式转换
+	ThreadPool(const std::string);  // 含参构造函数
 	ThreadPool(const ThreadPool &) = delete;  // 删除拷贝构造函数
 	ThreadPool(ThreadPool &&) = delete;  // 删除移动构造函数
 	ThreadPool &operator=(const ThreadPool &) = delete;  // 删除赋值构造函数
@@ -123,7 +135,7 @@ inline size_t ThreadPool::getThreadsAmount() {
  */
 inline size_t ThreadPool::getTaskMaxAmount() {
 	std::unique_lock<std::mutex> lock(m_mutex);
-	return m_max_task;
+	return m_config->m_max_task;
 }
 
 
@@ -133,7 +145,7 @@ inline size_t ThreadPool::getTaskMaxAmount() {
  */
 inline void ThreadPool::setTaskMaxAmount(size_t max) {
 	std::unique_lock<std::mutex> lock(m_mutex);
-	m_max_task = max;
+	m_config->m_max_task = max;
 }
 
 
@@ -144,7 +156,7 @@ inline void ThreadPool::setTaskMaxAmount(size_t max) {
 inline void ThreadPool::setTaskTimeoutByMilliseconds(std::chrono::milliseconds new_timeout) {
 	std::unique_lock<std::mutex> lock(m_mutex);
 
-	m_timeout = new_timeout;
+	m_config->m_timeout = new_timeout;
 }
 
 
@@ -155,7 +167,7 @@ inline void ThreadPool::setTaskTimeoutByMilliseconds(std::chrono::milliseconds n
 inline void ThreadPool::setTaskTimeoutBySeconds(std::chrono::seconds new_timeout) {
 	std::unique_lock<std::mutex> lock(m_mutex);
 
-	m_timeout = std::chrono::duration_cast<std::chrono::milliseconds>(new_timeout);
+	m_config->m_timeout = std::chrono::duration_cast<std::chrono::milliseconds>(new_timeout);
 }
 
 
@@ -166,7 +178,7 @@ inline void ThreadPool::setTaskTimeoutBySeconds(std::chrono::seconds new_timeout
 inline size_t ThreadPool::getTaskPriority() {
 	std::unique_lock<std::mutex> lock(m_mutex);
 
-	return m_priority_level;
+	return m_config->m_priority_level;
 }
 
 
@@ -177,7 +189,7 @@ inline size_t ThreadPool::getTaskPriority() {
 inline void ThreadPool::setTaskPriority(size_t priority) {
 	std::unique_lock<std::mutex> lock(m_mutex);
 
-	m_priority_level = priority;
+	m_config->m_priority_level = priority;
 }
 
 
@@ -220,11 +232,11 @@ inline auto ThreadPool::submitTask(Func &&func, Args &&... args) -> std::future<
 		}
 
 		// 如果任务数已满，等待线程执行
-		if (m_max_task == m_queue.safeQueueSize()) {
+		if (m_config->m_max_task == m_queue.safeQueueSize()) {
 			std::cout << "任务队列已满, 请等待任务完成" << std::endl;
 
 			// 用户提交任务，超过时长，否则算提交任务失败
-			if (std::cv_status::timeout == m_queue_not_full.wait_for(lock, std::chrono::milliseconds(m_timeout))) {
+			if (std::cv_status::timeout == m_queue_not_full.wait_for(lock, std::chrono::milliseconds(m_config->m_timeout))) {
 				// 表示等待一秒 条件依然没有满足
 				std::cerr << "提交任务超时，请稍后重尝..." << std::endl;
 				return return_future;
@@ -232,19 +244,19 @@ inline auto ThreadPool::submitTask(Func &&func, Args &&... args) -> std::future<
 		}
 
 		// 任务入队
-		m_queue.taskEnqueue(warpper_func, m_priority_level);
+		m_queue.taskEnqueue(warpper_func, m_config->m_priority_level);
 	}
 
 	// 动态添加线程
-	if (m_mode == ThreadPoolWorkMode::MUTABLE_THREAD
+	if (m_config->m_mode == ThreadPoolWorkMode::MUTABLE_THREAD
 		&& getThreadsAmount() < m_queue.safeQueueSize()
-		&& getThreadsAmount() < m_max_threshold
+		&& getThreadsAmount() < m_config->m_max_threshold
 		&& getThreadsAmount() < std::thread::hardware_concurrency()
 	) {
 		m_threads[m_thread_id] = std::thread(&Worker::operator(), Worker(this, m_thread_id));  // 指定线程所执行的函数
 		m_thread_id++;
 		m_thread_amount++;
-		std::cout << "已动态添加新线程，当前线程数量为: " << getThreadsAmount() << "  ----->   " << m_max_threshold << std::endl;
+		std::cout << "已动态添加新线程，当前线程数量为: " << getThreadsAmount() << "  ----->   " << m_config->m_max_threshold << std::endl;
 	}
 
 	// 唤醒一个等待中的线程

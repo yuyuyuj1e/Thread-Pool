@@ -3,7 +3,7 @@
  * @github: https://github.com/yuyuyuj1e
  * @csdn: https://blog.csdn.net/yuyuyuj1e
  * @date: 2023-03-29 19:06:23
- * @last_edit_time: 2023-03-29 19:53:29
+ * @last_edit_time: 2023-03-29 20:42:56
  * @file_path: /Thread-Pool/src/Worker.cpp
  * @description: 线程池内部工作类的源文件
  */
@@ -39,14 +39,14 @@ void ThreadPool::Worker::operator()() {
 			// 如果任务队列为空，阻塞当前线程
 			if (m_pool->m_queue.empty()) {
 				std::cout << "任务队列空，等待任务..." << std::endl;
-				if (m_pool->m_mode == ThreadPoolWorkMode::FIXED_THREAD) {
+				if (m_pool->m_config->m_mode == ThreadPoolWorkMode::FIXED_THREAD) {
 					m_pool->m_queue_not_empty.wait(lock);  // 等待任务
 				}
-				else if (m_pool->m_mode == ThreadPoolWorkMode::MUTABLE_THREAD) {
+				else if (m_pool->m_config->m_mode == ThreadPoolWorkMode::MUTABLE_THREAD) {
 					
-					if (std::cv_status::timeout == m_pool->m_queue_not_empty.wait_for(lock, std::chrono::milliseconds(m_pool->m_timeout))) {
+					if (std::cv_status::timeout == m_pool->m_queue_not_empty.wait_for(lock, std::chrono::milliseconds(m_pool->m_config->m_timeout))) {
 						
-						if (m_pool->m_thread_amount > m_pool->m_min_threshold) {
+						if (m_pool->m_thread_amount > m_pool->m_config->m_min_threshold) {
 							std::cout << "tid:" << std::this_thread::get_id() << " 退出! ---- ";
 							m_pool->m_threads[m_id].detach();
 							m_pool->m_threads.erase(m_id);
@@ -69,7 +69,7 @@ void ThreadPool::Worker::operator()() {
 		if (dequeued) {
 			// 取出一个任务进行通知 通知可以继续提交任务
 			m_pool->m_queue_not_full.notify_all();
-			std::cout << "tid: " << std::this_thread::get_id() << " 已领取任务，当前任务数量为: " << m_pool->m_queue.safeQueueSize() << "  ----->   " << m_pool->m_max_task << std::endl;
+			std::cout << "tid: " << std::this_thread::get_id() << " 已领取任务，当前任务数量为: " << m_pool->m_queue.safeQueueSize() << "  ----->   " << m_pool->m_config->m_max_task << std::endl;
 			func();
 		}
 		else {

@@ -1,10 +1,10 @@
-/**
+/** 
  * @author: yuyuyuj1e 807152541@qq.com
  * @github: https://github.com/yuyuyuj1e
  * @csdn: https://blog.csdn.net/yuyuyuj1e
- * @date: 2022-11-10 18:17:23
- * @last_edit_time: 2022-11-17 19:38:01
- * @file_path: /Tiny-Cpp-Frame/ThreadPool/test/test.cpp
+ * @date: 2023-03-29 17:17:39
+ * @last_edit_time: 2023-03-29 21:27:46
+ * @file_path: /Thread-Pool/test/test.cpp
  * @description: 线程池测试文件
  */
 
@@ -36,7 +36,7 @@ int multiply_return(const int a, const int b) {
 
 int main() {
 	// 创建线程池
-	ThreadPool pool(3, ThreadPoolWorkMode::MUTABLE_THREAD);
+	ThreadPool pool;
 
 	// 任务队列最大承载量
 	pool.setTaskMaxAmount((size_t)4);

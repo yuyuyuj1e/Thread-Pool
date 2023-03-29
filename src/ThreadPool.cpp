@@ -3,24 +3,23 @@
  * @github: https://github.com/yuyuyuj1e
  * @csdn: https://blog.csdn.net/yuyuyuj1e
  * @date: 2023-03-13 09:58:13
- * @last_edit_time: 2023-03-29 19:42:20
+ * @last_edit_time: 2023-03-29 21:30:20
  * @file_path: /Thread-Pool/src/ThreadPool.cpp
  * @description: 线程池模块源文件
  */
 
 
 #include "ThreadPool.h"
+#include <fstream>
+#include "json/json.h"
 
-/*
-***************************线程池的实现***************************
-*/
 
 /**
- * @description: 默认构造函数，线程数量为可用硬件实现支持的并发线程数
- * @description: 通过委托构造函数
+ * @description: 默认构造函数，使用通过委托构造函数
  */
-ThreadPool::ThreadPool() : ThreadPool(std::thread::hardware_concurrency(), ThreadPoolWorkMode::FIXED_THREAD)
-{ }
+ThreadPool::ThreadPool() : ThreadPool("../conf/threadpool.json") {
+	
+}
 
 
 /**
@@ -28,29 +27,19 @@ ThreadPool::ThreadPool() : ThreadPool(std::thread::hardware_concurrency(), Threa
  * @param {size_t} n_threads: 最低线程数量
  * @param {ThreadPoolWorkMode} work_mode: 线程池工作模式
  */
-ThreadPool::ThreadPool(const size_t n_threads, ThreadPoolWorkMode work_mode)
-	: m_max_task(2 * n_threads)
-	, m_max_threshold(
-		work_mode == ThreadPoolWorkMode::FIXED_THREAD ? 
-			(n_threads < std::thread::hardware_concurrency() ? n_threads : std::thread::hardware_concurrency()) : 
-			(2 * n_threads < std::thread::hardware_concurrency() ? 2 * n_threads : std::thread::hardware_concurrency()))
-	, m_min_threshold(
-		work_mode == ThreadPoolWorkMode::FIXED_THREAD ? 
-			(n_threads < std::thread::hardware_concurrency() ? n_threads : std::thread::hardware_concurrency()) : 
-			(n_threads < std::thread::hardware_concurrency() ? n_threads : std::thread::hardware_concurrency()))
-	, m_mode(work_mode)
-	, m_thread_amount(0)
-{
-	std::cout << "线程池初始配置如下: " << std::endl;
-	if (m_mode == ThreadPoolWorkMode::FIXED_THREAD)
+ThreadPool::ThreadPool(const std::string config_path): m_thread_amount(0) {
+	parseConfig(config_path);
+
+    std::cout << "线程池初始配置如下: " << std::endl;
+	if (m_config->m_mode == ThreadPoolWorkMode::FIXED_THREAD)
 		std::cout << "线程池工作模式: FIXED_THREAD" << std::endl;
 	else
 		std::cout << "线程池工作模式: MUTABLE_THREAD" << std::endl;
-	std::cout << "线程数量: " << m_min_threshold << '\n'
-		<< "线程上限: " << m_max_threshold << '\n'
-		<< "线程下限: " << m_min_threshold << '\n'
-		<< "任务队列长度: " << m_max_task << '\n'
-		<< "任务优先级: " << m_priority_level << '\n'
+	std::cout << "线程数量: " << m_config->m_min_threshold << '\n'
+		<< "线程上限: " << m_config->m_max_threshold << '\n'
+		<< "线程下限: " << m_config->m_min_threshold << '\n'
+		<< "任务队列长度: " << m_config->m_max_task << '\n'
+		<< "任务优先级: " << m_config->m_priority_level << '\n'
 		<< "任务提交时限: 3 秒\n"
 		<< std::endl;
 
@@ -100,7 +89,7 @@ void ThreadPool::close() {
  */
 void ThreadPool::initThreadPool() {
 	m_start = true;
-	for (int i = 0; i < m_min_threshold; ++i) {
+	for (int i = 0; i < m_config->m_min_threshold; ++i) {
 		// std::thread 调用类的成员函数需要传递类的一个对象作为参数， 由于是 operator() 下面两种写法都可以，如果是类内部，传入 this 指针即可
 		// m_threads[i] = std::thread(Worker(this, i));  // 分配工作线程
 		m_threads[m_thread_id] = std::thread(&Worker::operator(), Worker(this, m_thread_id));  // 指定线程所执行的函数
@@ -109,3 +98,50 @@ void ThreadPool::initThreadPool() {
 	}
 }
 
+
+/** 
+ * @description: 解析 Json 配置文件
+ * @param {string} config_path: 配置文件路径
+ * @return {bool} 成功返回 true, 失败返回 false
+ */
+bool ThreadPool::parseConfig(std::string config_path) {
+	std::ifstream ifs(config_path);
+
+	if (!ifs) {
+        perror("open json fail");
+        return false;
+    }
+
+	// 反序列化 -> Value 对象
+    Json::Value root;
+    Json::Reader rd;
+    rd.parse(ifs, root);
+
+    //  从 Value 对象对象读取数据
+    if (!root.isObject()) {
+        return false;
+    }
+
+    int max = root["max_threads"].asInt();
+    int min = root["min_threads"].asInt();
+    int hardware_size = std::thread::hardware_concurrency();
+
+    m_config = new ThreadPoolConfig;
+    if (root["FIXED_THREAD"].asBool()) {
+        m_config->m_mode = ThreadPoolWorkMode::FIXED_THREAD;
+
+        m_config->m_max_threshold = m_config->m_min_threshold = max < hardware_size ? max : hardware_size;
+    }
+    else {
+        m_config->m_mode = ThreadPoolWorkMode::MUTABLE_THREAD;
+
+        m_config->m_max_threshold = max < hardware_size ? max : hardware_size;
+        m_config->m_min_threshold = min < hardware_size ? min : hardware_size;
+    }
+    m_config->m_timeout = std::chrono::milliseconds(root["timeout"].asInt());
+    m_config->m_priority_level = root["priority_level"].asInt();
+
+    m_config->m_max_task = root["max_task"].asInt();
+
+    return true;
+}

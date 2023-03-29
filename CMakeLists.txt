@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 # 引入头文件目录
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
 # 添加源文件到自定义的变量中
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src SRC_LIST)

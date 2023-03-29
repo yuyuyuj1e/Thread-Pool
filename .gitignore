@@ -1,3 +1,6 @@
 build
-bin
+bin/libthreadpool.a
+bin/libthreadpool.so
+bin/normal_test
+bin/shared_test
 .vscode
