@@ -1,0 +1,8 @@
+{
+    "log_path": "/home/ubuntu/桌面/Thread-Pool/Log",
+    "log_name": "log.txt",
+    "open_mode": "ADDTO",
+    "time_format": "FULLA",
+    "backup": true,
+    "max_log_size": 1
+}

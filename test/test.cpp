@@ -3,13 +3,16 @@
  * @github: https://github.com/yuyuyuj1e
  * @csdn: https://blog.csdn.net/yuyuyuj1e
  * @date: 2023-03-29 17:17:39
- * @last_edit_time: 2023-03-29 21:27:46
+ * @last_edit_time: 2023-03-31 20:57:27
  * @file_path: /Thread-Pool/test/test.cpp
  * @description: 线程池测试文件
  */
 
 #include <iostream>
 #include "ThreadPool.h"
+#include "CppLog.h"
+#include <fstream>
+
 
 // 普通函数
 void multiply(const int a, const int b) {

@@ -3,7 +3,7 @@
  * @github: https://github.com/yuyuyuj1e
  * @csdn: https://blog.csdn.net/yuyuyuj1e
  * @date: 2023-03-13 09:58:13
- * @last_edit_time: 2023-03-29 21:30:20
+ * @last_edit_time: 2023-03-31 20:55:31
  * @file_path: /Thread-Pool/src/ThreadPool.cpp
  * @description: 线程池模块源文件
  */
@@ -12,7 +12,6 @@
 #include "ThreadPool.h"
 #include <fstream>
 #include "json/json.h"
-
 
 /**
  * @description: 默认构造函数，使用通过委托构造函数
@@ -28,9 +27,11 @@ ThreadPool::ThreadPool() : ThreadPool("../conf/threadpool.json") {
  * @param {ThreadPoolWorkMode} work_mode: 线程池工作模式
  */
 ThreadPool::ThreadPool(const std::string config_path): m_thread_amount(0) {
+	m_log->run();
 	parseConfig(config_path);
 
-    std::cout << "线程池初始配置如下: " << std::endl;
+#ifdef DEBUG
+	std::cout << "线程池初始配置如下: " << std::endl;
 	if (m_config->m_mode == ThreadPoolWorkMode::FIXED_THREAD)
 		std::cout << "线程池工作模式: FIXED_THREAD" << std::endl;
 	else
@@ -42,7 +43,16 @@ ThreadPool::ThreadPool(const std::string config_path): m_thread_amount(0) {
 		<< "任务优先级: " << m_config->m_priority_level << '\n'
 		<< "任务提交时限: 3 秒\n"
 		<< std::endl;
+#else
+	std::string task = "线程池初始配置如下 ---------> ";
+	
+	if (m_config->m_mode == ThreadPoolWorkMode::FIXED_THREAD)
+		task += "线程池工作模式: FIXED_THREAD";
+	else
+		task += "线程池工作模式: MUTABLE_THREAD";
 
+	m_log->addTask(task);
+#endif
 	// 初始化线程池
 	initThreadPool();
 }
@@ -68,8 +78,14 @@ void ThreadPool::close() {
 	{
         std::unique_lock<std::mutex> lock(m_mutex);
         m_start = false;
-		std::cout << "线程池已准备关闭，请勿继续提交任务" << std::endl;
     }
+
+#ifdef DEBUG
+	std::cout << "线程池已准备关闭，请勿继续提交任务" << std::endl;
+#else
+	m_log->addTask("线程池已准备关闭，请勿继续提交任务");
+#endif
+
 
 	// 唤醒所有被当前条件变量阻塞的线程
 	m_queue_not_empty.notify_all();
@@ -79,7 +95,13 @@ void ThreadPool::close() {
 		it->second.join();
 	}
 
+#ifdef DEBUG
 	std::cout << "线程池已关闭" << std::endl;
+#else
+	m_log->addTask("线程池已关闭");
+#endif
+
+	m_log->close();
 }
 
 

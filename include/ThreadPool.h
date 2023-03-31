@@ -3,7 +3,7 @@
  * @github: https://github.com/yuyuyuj1e
  * @csdn: https://blog.csdn.net/yuyuyuj1e
  * @date: 2022-11-10 18:17:23
- * @last_edit_time: 2023-03-29 21:32:31
+ * @last_edit_time: 2023-03-31 20:37:41
  * @file_path: /Thread-Pool/include/ThreadPool.h
  * @description: 线程池模块头文件 
  */
@@ -23,6 +23,7 @@
 #include <mutex>
 #include <condition_variable>
 #include "SafeQueue.h"
+#include "CppLog.h"
 
 
 /** 
@@ -70,6 +71,9 @@ private:
 	SafeQueue<std::function<void()>> m_queue; // 函数任务队列
 	std::condition_variable m_queue_not_full;  // 任务已满
 	std::condition_variable m_queue_not_empty; // 任务为空
+
+	/* 日志 */
+	CppLog* m_log = CppLog::getInstance();
 
 	/* 工作线程 */
 	std::unordered_map<int, std::thread> m_threads;  // 线程队列
@@ -227,18 +231,30 @@ inline auto ThreadPool::submitTask(Func &&func, Args &&... args) -> std::future<
 
 		// 如果线程池已经决定关闭，则不可再提交任务
 		if (!m_start) {
-			std::cout << "线程池已被关闭，无法提交新任务" << std::endl;
+
+#ifdef DEBUG
+			std::cout << "线程池已被关闭，无法提交新任务";
+#else
+			m_log->addTask("线程池已被关闭，无法提交新任务");
+#endif
+
 			throw std::runtime_error("ThreadPool is already colsed");
 		}
 
 		// 如果任务数已满，等待线程执行
 		if (m_config->m_max_task == m_queue.safeQueueSize()) {
-			std::cout << "任务队列已满, 请等待任务完成" << std::endl;
+
+#ifdef DEBUG
+			std::cout << "任务队列已满, 请等待任务完成";
+#else
+			m_log->addTask("任务队列已满, 请等待任务完成");
+#endif
 
 			// 用户提交任务，超过时长，否则算提交任务失败
 			if (std::cv_status::timeout == m_queue_not_full.wait_for(lock, std::chrono::milliseconds(m_config->m_timeout))) {
 				// 表示等待一秒 条件依然没有满足
 				std::cerr << "提交任务超时，请稍后重尝..." << std::endl;
+				m_log->addTask("提交任务超时，请稍后重尝...");
 				return return_future;
 			}
 		}
@@ -256,7 +272,15 @@ inline auto ThreadPool::submitTask(Func &&func, Args &&... args) -> std::future<
 		m_threads[m_thread_id] = std::thread(&Worker::operator(), Worker(this, m_thread_id));  // 指定线程所执行的函数
 		m_thread_id++;
 		m_thread_amount++;
-		std::cout << "已动态添加新线程，当前线程数量为: " << getThreadsAmount() << "  ----->   " << m_config->m_max_threshold << std::endl;
+
+	size_t threads_amount = getThreadsAmount();
+#ifdef DEBUG
+	std::cout << "已动态添加新线程，当前线程数量为: " << threads_amount << "  ----->   " << m_config->m_max_threshold << std::endl;
+#else
+	std::string task = "已动态添加新线程，当前线程数量为: " + threads_amount;
+	m_log->addTask(task);
+#endif
+		
 	}
 
 	// 唤醒一个等待中的线程
