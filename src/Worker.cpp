@@ -3,7 +3,7 @@
  * @github: https://github.com/yuyuyuj1e
  * @csdn: https://blog.csdn.net/yuyuyuj1e
  * @date: 2023-03-29 19:06:23
- * @last_edit_time: 2023-03-29 20:42:56
+ * @last_edit_time: 2023-04-04 17:13:42
  * @file_path: /Thread-Pool/src/Worker.cpp
  * @description: 线程池内部工作类的源文件
  */
@@ -69,7 +69,7 @@ void ThreadPool::Worker::operator()() {
 		if (dequeued) {
 			// 取出一个任务进行通知 通知可以继续提交任务
 			m_pool->m_queue_not_full.notify_all();
-			std::cout << "tid: " << std::this_thread::get_id() << " 已领取任务，当前任务数量为: " << m_pool->m_queue.safeQueueSize() << "  ----->   " << m_pool->m_config->m_max_task << std::endl;
+			std::cout << "tid: " << std::this_thread::get_id() << " 已领取任务，当前任务数量为: " << m_pool->m_queue.safeQueueSize() << "  ----->   " << m_pool->m_threads.size() << std::endl;
 			func();
 		}
 		else {
