@@ -3,7 +3,7 @@
  * @github: https://github.com/yuyuyuj1e
  * @csdn: https://blog.csdn.net/yuyuyuj1e
  * @date: 2022-11-10 18:17:23
- * @last_edit_time: 2023-04-04 17:13:55
+ * @last_edit_time: 2023-04-05 15:16:00
  * @file_path: /Thread-Pool/include/ThreadPool.h
  * @description: 线程池模块头文件 
  */
@@ -22,7 +22,7 @@
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
-#include "SafeQueue.h"
+#include "HeapSafeQueue.h"
 #include "CppLog.h"
 
 
@@ -68,7 +68,7 @@ private:
 	std::mutex m_mutex; // 互斥锁
 
 	/* 任务队列 */
-	SafeQueue<std::function<void()>> m_queue; // 函数任务队列
+	HeapSafeQueue m_queue; // 函数任务队列
 	std::condition_variable m_queue_not_full;  // 任务已满
 	std::condition_variable m_queue_not_empty; // 任务为空
 
@@ -242,7 +242,7 @@ inline auto ThreadPool::submitTask(Func &&func, Args &&... args) -> std::future<
 		}
 
 		// 如果任务数已满，等待线程执行
-		if (m_config->m_max_task == m_queue.safeQueueSize()) {
+		if (m_config->m_max_task == m_queue.size()) {
 
 #ifdef DEBUG
 			std::cout << "任务队列已满, 请等待任务完成";
