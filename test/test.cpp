@@ -3,7 +3,7 @@
  * @github: https://github.com/yuyuyuj1e
  * @csdn: https://blog.csdn.net/yuyuyuj1e
  * @date: 2023-03-29 17:17:39
- * @last_edit_time: 2023-03-31 20:57:27
+ * @last_edit_time: 2023-04-05 16:15:50
  * @file_path: /Thread-Pool/test/test.cpp
  * @description: 线程池测试文件
  */
@@ -41,9 +41,6 @@ int main() {
 	// 创建线程池
 	ThreadPool pool;
 
-	// 任务队列最大承载量
-	pool.setTaskMaxAmount((size_t)4);
-
 	// 设置提交任务超时时长
 	// pool.setTaskTimeoutByMilliseconds(std::chrono::milliseconds(1000));
 	// pool.setTaskTimeoutBySeconds(std::chrono::seconds(1));
@@ -55,18 +52,16 @@ int main() {
 		}
 	}
 
-	pool.setTaskPriority(3);
 	// 提交乘法操作
 	for (int i = 4; i <= 6; ++i) {
 		for (int j = 4; j <= 5; ++j) {
-			pool.submitTask(multiply, i, j);
+			pool.submitTask(3, multiply, i, j);
 		}
 	}
 
 	// 如果关闭线程池，下面任务无法提交
 	// pool.close();
 
-	pool.setTaskPriority(4);
 	// 使用ref传递的输出参数提交函数
 	int output_ref;
 	auto future1 = pool.submitTask(multiply_output, std::ref(output_ref), 5, 6);

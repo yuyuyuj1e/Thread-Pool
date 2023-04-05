@@ -3,7 +3,7 @@
  * @github: https://github.com/yuyuyuj1e
  * @csdn: https://blog.csdn.net/yuyuyuj1e
  * @date: 2022-11-10 18:17:23
- * @last_edit_time: 2023-04-05 15:16:00
+ * @last_edit_time: 2023-04-05 16:17:54
  * @file_path: /Thread-Pool/include/ThreadPool.h
  * @description: 线程池模块头文件 
  */
@@ -110,6 +110,8 @@ public:
 	void close();  // 关闭线程池
 
 	template <typename Func, typename... Args>
+	auto submitTask(size_t proity, Func &&f, Args &&...args) -> std::future<decltype(f(args...))>;  // 提交异步执行的函数
+	template <typename Func, typename... Args>
 	auto submitTask(Func &&f, Args &&...args) -> std::future<decltype(f(args...))>;  // 提交异步执行的函数
 
 	inline size_t getThreadsAmount();  // 获取线程数量
@@ -205,6 +207,19 @@ inline void ThreadPool::setTaskPriority(size_t priority) {
  */
 template <typename Func, typename... Args>
 inline auto ThreadPool::submitTask(Func &&func, Args &&... args) -> std::future<decltype(func(args...))> {
+	return submitTask(m_config->m_priority_level, std::forward<Func>(func), std::forward<Args>(args)...);
+}
+
+
+/**
+ * @description: 提交异步执行的函数
+ * @param {size_t} proity: 任务优先级
+ * @param {Func} &: 任务函数
+ * @param {Args &&...} args: 任务函数参数
+ * @return {std::future<decltype(func(args...))>} 任务函数形成的 future
+ */
+template <typename Func, typename... Args>
+inline auto ThreadPool::submitTask(size_t proity, Func &&func, Args &&... args) -> std::future<decltype(func(args...))> {
 
 	// typename std::result_of<Func(Args...)>::type 等同于 decltype(func(args...))
 	using func_renturn_type = typename std::result_of<Func(Args...)>::type;
@@ -273,7 +288,7 @@ inline auto ThreadPool::submitTask(Func &&func, Args &&... args) -> std::future<
 			}
 		}
 		// 任务入队
-		m_queue.taskEnqueue(warpper_func, m_config->m_priority_level);
+		m_queue.taskEnqueue(warpper_func, proity);
 	}
 
 	// 唤醒一个等待中的线程

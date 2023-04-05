@@ -3,7 +3,7 @@
  * @github: https://github.com/yuyuyuj1e
  * @csdn: https://blog.csdn.net/yuyuyuj1e
  * @date: 2023-04-05 14:53:08
- * @last_edit_time: 2023-04-05 15:22:24
+ * @last_edit_time: 2023-04-05 16:08:28
  * @file_path: /Thread-Pool/src/HeapSafeQueue.cpp
  * @description: 基于堆结构的优先级队列源文件
  */
@@ -105,6 +105,7 @@ bool HeapSafeQueue::taskDequeue(std::function<void()> &task) {
 		return false;
 
 	task = std::move(m_queue[0].first);  // 取出队首元素，返回队首元素值，并进行右值引用
+    std::cout << "任务优先级为：" << m_queue[0].second << std::endl;
 
     m_queue[0] = m_queue[m_queue.size() - 1];  // 将最后一个元素，放到堆顶；注意，此时堆的特性已经被破坏，需要重新维护
 	m_queue.erase(m_queue.end() - 1);  // 弹出任务
