@@ -3,7 +3,7 @@
  * @github: https://github.com/yuyuyuj1e
  * @csdn: https://blog.csdn.net/yuyuyuj1e
  * @date: 2022-11-10 18:17:23
- * @last_edit_time: 2023-04-05 16:17:54
+ * @last_edit_time: 2023-04-14 14:51:13
  * @file_path: /Thread-Pool/include/ThreadPool.h
  * @description: 线程池模块头文件 
  */
@@ -264,31 +264,39 @@ inline auto ThreadPool::submitTask(size_t proity, Func &&func, Args &&... args) 
 #else
 			m_log->addTask("任务队列已满, 请等待任务完成");
 #endif
+			// 尝试添加线程
+			if (m_config->m_mode == ThreadPoolWorkMode::MUTABLE_THREAD
+				&& m_threads.size() < m_config->m_max_threshold
+				&& m_threads.size() < std::thread::hardware_concurrency()
+			) {
+				m_threads[m_thread_id] = std::thread(&Worker::operator(), Worker(this, m_thread_id));  // 指定线程所执行的函数
+				m_thread_id++;
+				m_thread_amount++;
 
-			// 用户提交任务，超过时长，增加新线程
-			while (std::cv_status::timeout == m_queue_not_full.wait_for(lock, std::chrono::milliseconds(m_config->m_timeout))) {
-				// 动态添加线程
-				std::cout << "需要添加新的线程" << std::endl;
-				if (m_config->m_mode == ThreadPoolWorkMode::MUTABLE_THREAD
-					&& m_threads.size() < m_config->m_max_threshold
-					&& m_threads.size() < std::thread::hardware_concurrency()
-				) {
-					m_threads[m_thread_id] = std::thread(&Worker::operator(), Worker(this, m_thread_id));  // 指定线程所执行的函数
-					m_thread_id++;
-					m_thread_amount++;
-
-					size_t threads_amount = m_threads.size();
+				size_t threads_amount = m_threads.size();
 #ifdef DEBUG
-					std::cout << "已动态添加新线程，当前线程数量为: " << threads_amount << "  ----->   " << m_config->m_max_threshold << std::endl;
+				std::cout << "已动态添加新线程，当前线程数量为: " << threads_amount << "  ----->   " << m_config->m_max_threshold << std::endl;
 #else
-					std::string task = "已动态添加新线程，当前线程数量为: " + threads_amount;
-					m_log->addTask(task);
+				std::string task = "已动态添加新线程，当前线程数量为: " + threads_amount;
+				m_log->addTask(task);
 #endif
-				}
+			}
+
+			// 用户提交任务，超过时长，执行拒绝策略
+			if (std::cv_status::timeout == m_queue_not_full.wait_for(lock, std::chrono::milliseconds(m_config->m_timeout))) {
+				// 动态添加线程
+				std::cout << "拒绝策略" << std::endl;
+			}
+			else {
+				// 任务入队
+				m_queue.taskEnqueue(warpper_func, proity);
 			}
 		}
-		// 任务入队
-		m_queue.taskEnqueue(warpper_func, proity);
+		else {
+			// 任务入队
+				m_queue.taskEnqueue(warpper_func, proity);
+		}
+		
 	}
 
 	// 唤醒一个等待中的线程
